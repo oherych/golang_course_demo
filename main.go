@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"golang.org/x/sync/errgroup"
+	"golang_course_demo/internal/api"
 	"golang_course_demo/internal/config"
 	"golang_course_demo/internal/db"
 	"golang_course_demo/internal/migrations"
@@ -11,10 +13,6 @@ import (
 	"log"
 	"net/http"
 )
-
-var urls = []string{
-	"http://podcast.dou.ua/rss",
-}
 
 func main() {
 	// TODO: read from env
@@ -38,14 +36,20 @@ func main() {
 	}
 
 	r := reader.New(http.Client{})
-	feedsRepo := storage.NewFeeds(pool)
+	sourceRepo := storage.NewSource(pool)
+	channelRepo := storage.NewChannel(pool)
+	recordsRepo := storage.NewRecords(pool)
 
-	w := worker.New(r, feedsRepo)
+	w := worker.New(ctx, r, channelRepo, recordsRepo, sourceRepo)
+	router := api.New(":8080", sourceRepo, channelRepo, recordsRepo)
+
+	eg := &errgroup.Group{}
+	eg.Go(router.Start)
+	eg.Go(w.Scan)
 
 	log.Println("> Scanning")
 
-	if err := w.Scan(ctx, urls); err != nil {
+	if err := eg.Wait(); err != nil {
 		log.Fatal(err)
 	}
-
 }

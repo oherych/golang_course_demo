@@ -11,4 +11,4 @@ CREATE TABLE records (
 );
 
 -- +goose Down
-DROP TABLE IF EXISTS articles; 
+DROP TABLE IF EXISTS records;
